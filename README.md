@@ -7,9 +7,16 @@ Hardware:
   NodeMCU v1.0
   DHT22
   PlaTower PMS5003
+  I2C LCD 1602
   
  Software:
   Arduino extension
   ESP8266 arduino extension
   
- Note: To flash the firmware, unplug the PMS5003 from the RX pin.
+Print in real time on LCd:
+  Temperature
+  Humidity
+  AQi
+  APM 1.0
+
+Soon a 3d-printed will be published on thingiverse ...
