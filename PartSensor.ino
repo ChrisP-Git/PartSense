@@ -12,10 +12,109 @@
 #define DEBUG_PRINT(x)
 #endif
 
+//////////////////////////////////////////////////////
+///////// Replace Wifi connexion information by //////
+///////// your own values                       //////
+//////////////////////////////////////////////////////
+const char* Wifi_SSID = "SSID";
+const char* Wifi_PASSWORD = "PASSWORD!";
+
+//////////////////////////////////////////////////////
+///////// if you want to push data on thingspeak /////
+///////// Replace API keys by your own values ////////
+//////////////////////////////////////////////////////
+const String ThingSpeak_PM_APIKey = "Channel-PM-API-KEY";
+const String ThingSpeak_Raw_APIKey = "Channel-Raw-API-KEY";
+const char* ThingSpeak_API_Server = "api.thingspeak.com";
+
 // I2C LCd
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-// ThingSpeak
+//Thingspeak
+#define USE_THINGSPEAK //comment to remove thinkspeak data feeding
+
+//MQTT
+#define USE_MQTT //comment to remove MQTT data feeding (not implemented yet)
+
+//Wifi
+#define USE_WIFI //Wifi connexion required for ThingSpeak feeding
+const int MAX_WIFI_TRY=4;
+
+//DHT11 / DHT21 / DHT22
+#define USE_CELCIUS //define to use Celcius temperature, comment to use Farhenheit
+const int PINDHT = D5;
+// Uncomment whatever type you're using!
+//#define DHTTYPE DHT11   // DHT 11 
+//#define DHTTYPE DHT21   // DHT 21 (AM2301)
+#define DHTTYPE DHT22  // DHT 22  (AM2302)
+float humidity = 0;
+float temperature = 0;
+DHT dht(PINDHT, DHTTYPE);
+
+//PMS5003
+const int PINPMSGO = D0; // what pin we’re connected to activate measurement
+
+#define MSG_LENGTH 31   //0x42 + 31 bytes equal to PMS5003 serial message packet lenght
+#define HTTP_TIMEOUT 20000 //maximum http response wait period, sensor disconects if no response
+#define MIN_WARM_TIME 35000 //warming-up period requred for sensor to enable fan and prepare air chamber
+#define SLEEP_TIME 30000 // time between each loop
+unsigned char buf[MSG_LENGTH];
+
+int atmPM01Value = 0;  //define PM1.0 value of the air detector module
+int atmPM25Value = 0;  //define pm2.5 value of the air detector module
+int atmPM10Value = 0;  //define pm10 value of the air detector module
+int CF1PM01Value = 0;  //define PM1.0 value of the air detector module
+int CF1PM25Value = 0;  //define pm2.5 value of the air detector module
+int CF1PM10Value = 0;  //define pm10 value of the air detector module
+int Partcount0_3 = 0;
+int Partcount0_5 = 0;
+int Partcount1_0 = 0;
+int Partcount2_5 = 0;
+int Partcount5_0 = 0;
+int Partcount10 = 0;
+
+int airQualityIndex = 0;
+
+
+void setupWIFI() {
+#ifdef USE_WIFI
+  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
+     would try to act as both a client and an access-point and could cause
+     network-issues with your other WiFi-devices on your WiFi-network. */
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(Wifi_SSID, Wifi_PASSWORD);
+  int i = 0;
+  DEBUG_PRINTLN("MAC address: ");
+  DEBUG_PRINTLN(WiFi.macAddress());
+
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(2000);
+    i++;
+    if (i > MAX_WIFI_TRY) {
+          i = 0;
+          DEBUG_PRINTLN("WiFi failed, retry");
+          Serial.printf("WiFi status:%d\n",  WiFi.status());
+          //ESP.reset();
+          
+          WiFi.disconnect();
+          WiFi.persistent(false);
+          WiFi.mode(WIFI_OFF);
+          WiFi.mode(WIFI_STA);
+          WiFi.begin(Wifi_SSID, Wifi_PASSWORD);
+      }
+    
+    DEBUG_PRINT(".");
+  }
+
+  DEBUG_PRINTLN("");
+  DEBUG_PRINTLN("WiFi connected");
+  DEBUG_PRINTLN("IP address: ");
+  DEBUG_PRINTLN(WiFi.localIP());
+#endif
+}
+
+// ThingSpeak Channel definition
+
 // PM Channel:
 // Field1= CF1 PM1
 // Field2= CF1 PM2.5
@@ -35,92 +134,108 @@ LiquidCrystal_I2C lcd(0x27, 16, 2);
 // Field6= Particule count 10 µm
 // Field7= AQI
 
-String ThingSpeakPMapiKey = "PMKEY"; //PM API Channel
-String ThingSpeakRawapiKey = "RAWKEY"; //Raw API Channel
-const char* ThingSpeakServer = "api.thingspeak.com";
+#ifdef USE_THINGSPEAK
 
-const int   SLEEP_TIME = 20 * 1000;
+void sendPMDataToCloud() {
+  DEBUG_PRINTLN("sendPMDataToCloud start");
 
-// Wifi
-const char* cWifiSSID = "SSID";
-const char* cWifiPassword = "PASSWORD";
-const int MAX_WIFI_TRY = 4;
+  // Enclosure-PM Channel
+    String postStr = ThingSpeak_PM_APIKey;
+    postStr += "&field1=";
+    postStr += String(CF1PM01Value);
+    postStr += "&field2=";
+    postStr += String(CF1PM25Value);
+    postStr += "&field3=";
+    postStr += String(CF1PM10Value);
+    postStr += "&field4=";
+    postStr += String(atmPM01Value);
+    postStr += "&field5=";
+    postStr += String(atmPM25Value);
+    postStr += "&field6=";
+    postStr += String(atmPM10Value);
+    if (!isnan(temperature)) {
+        postStr += "&field7=";
+        postStr += String(temperature);
+    }
+    if (!isnan(humidity)) {
+        postStr += "&field8=";
+        postStr += String(humidity);
+    }
+    postStr += "\r\n\r\n";
 
-//DHT22
-//#define PINDHT 4 // what pin we’re connected to
-const int PINDHT = D5;
-float humidity = 0;
-float temperature=0;
+    sendDataToCloud(ThingSpeak_PM_APIKey, postStr);
+}
 
-//PMS5003
-// #define PINPMS 5 // what pin we’re connected to for RX
-const int PINPMSGO = D0; // what pin we’re connected to activate measurement
+void sendRawDataToCloud() {
+  DEBUG_PRINTLN("sendRawDataToCloud start");
 
-//#define CONTINUOUS_MODE //read data continously and print to serial, no sensor deep sleep in continuous mode requred
-#define NETWORK_MODE //no network required in debug mode, data will be printed to serial 
+  // Enclosure-RawDust Channel
+    String postStr = ThingSpeak_Raw_APIKey;
+    postStr += "&field1=";
+    postStr += String(Partcount0_3);
+    postStr += "&field2=";
+    postStr += String(Partcount0_5);
+    postStr += "&field3=";
+    postStr += String(Partcount1_0);
+    postStr += "&field4=";
+    postStr += String(Partcount2_5);
+    postStr += "&field5=";
+    postStr += String(Partcount5_0);
+    postStr += "&field6=";
+    postStr += String(Partcount10);
+    postStr += "&field7=";
+    postStr += String(airQualityIndex);
+    postStr += "\r\n\r\n";
 
-#define MSG_LENGTH 31   //0x42 + 31 bytes equal to PMS5003 serial message packet lenght
-#define HTTP_TIMEOUT 20000 //maximum http response wait period, sensor disconects if no response
-#define MIN_WARM_TIME 35000 //warming-up period requred for sensor to enable fan and prepare air chamber
-unsigned char buf[MSG_LENGTH];
+    sendDataToCloud(ThingSpeak_Raw_APIKey, postStr);
+}
 
-int atmPM01Value = 0;  //define PM1.0 value of the air detector module
-int atmPM25Value = 0;  //define pm2.5 value of the air detector module
-int atmPM10Value = 0;  //define pm10 value of the air detector module
-int CF1PM01Value = 0;  //define PM1.0 value of the air detector module
-int CF1PM25Value = 0;  //define pm2.5 value of the air detector module
-int CF1PM10Value = 0;  //define pm10 value of the air detector module
-int Partcount0_3 = 0;
-int Partcount0_5 = 0;
-int Partcount1_0 = 0;
-int Partcount2_5 = 0;
-int Partcount5_0 = 0;
-int Partcount10 = 0;
-
-int airQualityIndex = 0;
-
-
-
-
-DHT dht(PINDHT, DHT22);
-WiFiClient client;
-
-void setupWIFI() {
-#ifdef NETWORK_MODE
-  /* Explicitly set the ESP8266 to be a WiFi-client, otherwise, it by default,
-     would try to act as both a client and an access-point and could cause
-     network-issues with your other WiFi-devices on your WiFi-network. */
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(cWifiSSID, cWifiPassword);
-  int i = 0;
-  DEBUG_PRINTLN("MAC address: ");
-  DEBUG_PRINTLN(WiFi.macAddress());
-
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(2000);
-    i++;
-    if (i > MAX_WIFI_TRY) {
-          i = 0;
-          DEBUG_PRINTLN("WiFi failed, retry");
-          Serial.printf("WiFi status:%d\n",  WiFi.status());
-          //ESP.reset();
-          
-          WiFi.disconnect();
-          WiFi.persistent(false);
-          WiFi.mode(WIFI_OFF);
-          WiFi.mode(WIFI_STA);
-          WiFi.begin(cWifiSSID, cWifiPassword);
-      }
-    
-    DEBUG_PRINT(".");
+void sendDataToCloud(String apikey, String strfield) {
+  DEBUG_PRINTLN("sendDataToCloud start");
+  // Use WiFiClient class to create TCP connections
+  //setupWIFI();
+  WiFiClient client;
+  if (!client.connect(ThingSpeak_API_Server, 80)) {
+    DEBUG_PRINT("connection failed to:");
+    DEBUG_PRINTLN(ThingSpeak_API_Server);
+    return;
   }
 
-  DEBUG_PRINTLN("");
-  DEBUG_PRINTLN("WiFi connected");
-  DEBUG_PRINTLN("IP address: ");
-  DEBUG_PRINTLN(WiFi.localIP());
-#endif
+  DEBUG_PRINTLN("Sending:" + strfield);
+
+    client.print("POST /update HTTP/1.1\n");
+    client.print("Host: api.thingspeak.com\n");
+    client.print("Connection: close\n");
+    client.print("X-THINGSPEAKAPIKEY: " + apikey + "\n");
+    client.print("Content-Type: application/x-www-form-urlencoded\n");
+    client.print("Content-Length: ");
+    client.print(strfield.length());
+    client.print("\n\n");
+    client.print(strfield);
+
+  client.flush();
+  delay(10);
+  DEBUG_PRINTLN("wait for response");
+  unsigned long timeout = millis();
+  while (client.available() == 0) {
+    if (millis() - timeout > HTTP_TIMEOUT) {
+      DEBUG_PRINTLN(">>> Client Timeout !");
+      client.stop();
+      DEBUG_PRINTLN("closing connection by timeout");
+      return;
+    }
+  }
+
+  // Read all the lines of the reply from server and print them to Serial
+  while (client.available()) {
+    String line = client.readStringUntil('\r');
+    DEBUG_PRINT(line);
+  }
+
+  client.stop();
+  DEBUG_PRINTLN("closing connection");
 }
+#endif
 
 boolean validateMsg() {
   int receiveSum = 0;
@@ -214,27 +329,38 @@ int calculateAQI25(float density) {
 }
 
 void powerOnSensor() {
+  //Switch on PMS sensor
   digitalWrite(PINPMSGO, HIGH);
+  //Warm-up
+  unsigned long timeout = millis();
+  timeout = MIN_WARM_TIME - (millis() - timeout);
+  if (timeout > 0) {
+    DEBUG_PRINT("sensor warm-up: ");
+    DEBUG_PRINTLN(timeout);
+    delay(timeout);
+  }
 }
 
 void powerOffSensor() {
-#ifdef NETWORK_MODE
+#ifdef USE_WIFI
   WiFi.disconnect();
 #endif
-#ifndef CONTINUOUS_MODE
+  //Switch off PMS sensor
   digitalWrite(PINPMSGO, LOW);
-  //ESP.deepSleep(SLEEP_TIME * 1000000); //deep sleep in microseconds, unfortunately doesn't work properly
-  DEBUG_PRINTLN("going to sleep zzz...");
-  delay(SLEEP_TIME);
-#endif
 }
 
 void ShowDataonLCD() {
     char buffer[35]; 
+    lcd.clear();
+
     if (!isnan(temperature)) {
       lcd.setCursor(0,0);
       float f=temperature;
+#ifdef USE_CELCIUS
       sprintf(buffer, "T:%d.%01dC ",(int)f, (int)(f*10)%10);
+#else
+      sprintf(buffer, "T:%d.%01dF ",(int)f, (int)(f*10)%10);
+#endif
       lcd.print(buffer);
     }
     else {
@@ -263,160 +389,48 @@ void ShowDataonLCD() {
 
 }
 
-void sendPMDataToCloud() {
-  DEBUG_PRINTLN("sendPMDataToCloud start");
-
-  // Enclosure-PM Channel
-    String postStr = ThingSpeakPMapiKey;
-    postStr += "&field1=";
-    postStr += String(CF1PM01Value);
-    postStr += "&field2=";
-    postStr += String(CF1PM25Value);
-    postStr += "&field3=";
-    postStr += String(CF1PM10Value);
-    postStr += "&field4=";
-    postStr += String(atmPM01Value);
-    postStr += "&field5=";
-    postStr += String(atmPM25Value);
-    postStr += "&field6=";
-    postStr += String(atmPM10Value);
-    if (!isnan(temperature)) {
-        postStr += "&field7=";
-        postStr += String(temperature);
-    }
-    if (!isnan(humidity)) {
-        postStr += "&field8=";
-        postStr += String(humidity);
-    }
-    postStr += "\r\n\r\n";
-
-    sendDataToCloud(ThingSpeakPMapiKey, postStr);
-}
-
-void sendRawDataToCloud() {
-  DEBUG_PRINTLN("sendRawDataToCloud start");
-
-  // Enclosure-RawDust Channel
-    String postStr = ThingSpeakRawapiKey;
-    postStr += "&field1=";
-    postStr += String(Partcount0_3);
-    postStr += "&field2=";
-    postStr += String(Partcount0_5);
-    postStr += "&field3=";
-    postStr += String(Partcount1_0);
-    postStr += "&field4=";
-    postStr += String(Partcount2_5);
-    postStr += "&field5=";
-    postStr += String(Partcount5_0);
-    postStr += "&field6=";
-    postStr += String(Partcount10);
-    postStr += "&field7=";
-    postStr += String(airQualityIndex);
-    postStr += "\r\n\r\n";
-
-    sendDataToCloud(ThingSpeakRawapiKey, postStr);
-}
-
-void sendDataToCloud(String apikey, String strfield) {
-#ifdef NETWORK_MODE // wifi connection is required only in network mode
-
-  DEBUG_PRINTLN("sendDataToCloud start");
-  // Use WiFiClient class to create TCP connections
-  WiFiClient client;
-  if (!client.connect("api.thingspeak.com", 80)) {
-    DEBUG_PRINTLN("connection failed");
-    return;
-  }
-
-  DEBUG_PRINTLN("Sending:" + strfield);
-
-    client.print("POST /update HTTP/1.1\n");
-    client.print("Host: api.thingspeak.com\n");
-    client.print("Connection: close\n");
-    client.print("X-THINGSPEAKAPIKEY: " + apikey + "\n");
-    client.print("Content-Type: application/x-www-form-urlencoded\n");
-    client.print("Content-Length: ");
-    client.print(strfield.length());
-    client.print("\n\n");
-    client.print(strfield);
-
-  client.flush();
-  delay(10);
-  DEBUG_PRINTLN("wait for response");
-  unsigned long timeout = millis();
-  while (client.available() == 0) {
-    if (millis() - timeout > HTTP_TIMEOUT) {
-      DEBUG_PRINTLN(">>> Client Timeout !");
-      client.stop();
-      DEBUG_PRINTLN("closing connection by timeout");
-      return;
-    }
-  }
-
-  // Read all the lines of the reply from server and print them to Serial
-  while (client.available()) {
-    String line = client.readStringUntil('\r');
-    DEBUG_PRINT(line);
-  }
-
-  client.stop();
-  DEBUG_PRINTLN("closing connection");
-#endif
-}
-
-
-
+// Setup block
 void setup() {
   Serial.begin(9600);
 
-
-  
-  
-  // The begin call takes the width and height. This
-  // Should match the number provided to the constructor.
   DEBUG_PRINTLN("Initialize LCD");
   lcd.begin(16,2);
   lcd.init();
-
-  // Turn on the backlight.
   lcd.backlight();
   lcd.print("Initialize ...");
   DEBUG_PRINTLN("LCD Initialized");
-
-
-
-  
   
   delay(10);
   dht.begin();
 
   DEBUG_PRINTLN(" Init started: DEBUG MODE");
-
   Serial.setTimeout(1500);//set the Timeout to 1500ms, longer than the data transmission time of the sensor
-  pinMode(PINPMSGO, OUTPUT);
+  pinMode(PINPMSGO, OUTPUT); // Define PMS 5003 pinout
+  lcd.setCursor(0,1); 
+  lcd.print("Warming up ...");
+
+
   DEBUG_PRINTLN("Initialization finished");
 }
 
+// Loop block
 void loop() {
   DEBUG_PRINTLN("loop start");
-  unsigned long timeout = millis();
 
   powerOnSensor();
-  setupWIFI();
+  #ifdef USE_WIFI
+    setupWIFI();
+  #endif
 
-#ifndef CONTINUOUS_MODE //no warm-up required for continous mode
-  timeout = MIN_WARM_TIME - (millis() - timeout);
-  if (timeout > 0) {
-    DEBUG_PRINT("sensor warm-up: ");
-    DEBUG_PRINTLN(timeout);
-//    delay(timeout);
-  }
-#endif
-
+  //Get Temperature & Humidity from DHT
   humidity = dht.readHumidity();
-  temperature = dht.readTemperature();
+  #ifdef USE_CELCIUS
+    temperature = dht.readTemperature();
+  #else
+    temperature = dht.readTemperature(true);
+  #endif
   if (isnan(humidity) || isnan(temperature)) {
-    DEBUG_PRINTLN("DHT22 not ready, skipped");
+    DEBUG_PRINTLN("DHTXX not ready, skipped");
   }
 
 
@@ -424,7 +438,7 @@ void loop() {
   Serial.swap(); //Use UART2 for PMS5003 communication (Allow sketch upload without having to unplug GPIO3 !!!!)
     if (Serial.find(0x42)) {  //start to read when detect 0x42
       Serial.readBytes(buf, MSG_LENGTH);
-    Serial.swap();
+      Serial.swap();
 
       if (buf[0] == 0x4d && validateMsg()) {
         CF1PM01Value = decodeCF1PM01(buf); //count PM1.0 CF1 value of the air detector module
@@ -471,21 +485,20 @@ void loop() {
         DEBUG_PRINTLN("--------------");
 #endif
 
+        ShowDataonLCD();
+
+#ifdef USE_THINGSPEAK
         sendPMDataToCloud();
         sendRawDataToCloud();
-        ShowDataonLCD();
-#ifdef CONTINUOUS_MODE
-          delay(16000); // Wait more than 15 seconds to send additionnal data
 #endif
+#ifdef USE_THINGSPEAK
+    //Placeholder for MQTT call
+#endif     
 
+        DEBUG_PRINTLN("Waiting for next loop");
+        delay(SLEEP_TIME); // Wait more than 15 seconds to send additionnal data
 
-#ifdef CONTINUOUS_MODE //loop forever for debugging purposes only
-        i = 0;
-#else
-        break; //data processed, exit from for loop and sleep
-#endif //for CONTINUOUS_MODE
-
-      } else {
+    } else {
         DEBUG_PRINTLN("message validation error");
       }
     } else {
