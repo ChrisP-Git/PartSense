@@ -19,4 +19,5 @@ Print in real time on LCd:
   AQi
   APM 1.0
 
-Soon a 3d-printed will be published on thingiverse ...
+3d-printed case and multiple pictures are available on: 
+http://www.thingiverse.com/thing:2320020
