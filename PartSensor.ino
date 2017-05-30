@@ -1,9 +1,14 @@
 #include <Arduino.h>
+#include "config.h"
 #include <DHT.h>
 #include <ESP8266WiFi.h>
 #include <LiquidCrystal_I2C.h>
 
-#define DEBUG
+#ifdef USE_MQTT
+  #include <PubSubClient.h>
+  PubSubClient MQTTclient;
+#endif
+
 #ifdef DEBUG
 #define DEBUG_PRINTLN(x)  Serial.println(x)
 #define DEBUG_PRINT(x)  Serial.print(x)
@@ -12,32 +17,11 @@
 #define DEBUG_PRINT(x)
 #endif
 
-//////////////////////////////////////////////////////
-///////// Replace Wifi connexion information by //////
-///////// your own values                       //////
-//////////////////////////////////////////////////////
-const char* Wifi_SSID = "SSID";
-const char* Wifi_PASSWORD = "PASSWORD!";
-
-//////////////////////////////////////////////////////
-///////// if you want to push data on thingspeak /////
-///////// Replace API keys by your own values ////////
-//////////////////////////////////////////////////////
-const String ThingSpeak_PM_APIKey = "Channel-PM-API-KEY";
-const String ThingSpeak_Raw_APIKey = "Channel-Raw-API-KEY";
-const char* ThingSpeak_API_Server = "api.thingspeak.com";
-
 // I2C LCd
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
-//Thingspeak
-#define USE_THINGSPEAK //comment to remove thinkspeak data feeding
-
-//MQTT
-#define USE_MQTT //comment to remove MQTT data feeding (not implemented yet)
-
 //Wifi
-#define USE_WIFI //Wifi connexion required for ThingSpeak feeding
+#define USE_WIFI //Wifi connexion required for ThingSpeak and/or MQTT feeding
 const int MAX_WIFI_TRY=4;
 
 //DHT11 / DHT21 / DHT22
@@ -56,7 +40,7 @@ const int PINPMSGO = D0; // what pin we’re connected to activate measurement
 
 #define MSG_LENGTH 31   //0x42 + 31 bytes equal to PMS5003 serial message packet lenght
 #define HTTP_TIMEOUT 20000 //maximum http response wait period, sensor disconects if no response
-#define MIN_WARM_TIME 35000 //warming-up period requred for sensor to enable fan and prepare air chamber
+#define MIN_WARM_TIME 3500 //0 //warming-up period requred for sensor to enable fan and prepare air chamber
 #define SLEEP_TIME 30000 // time between each loop
 unsigned char buf[MSG_LENGTH];
 
@@ -234,6 +218,70 @@ void sendDataToCloud(String apikey, String strfield) {
 
   client.stop();
   DEBUG_PRINTLN("closing connection");
+}
+#endif
+
+
+#ifdef USE_MQTT
+
+void sendDataToMQTT() {
+  DEBUG_PRINTLN("sendDataToMQTT start");
+    // Use WiFiClient class to create TCP connections
+  //setupWIFI();
+    WiFiClient client;
+  if (!client.connect(MQTT_Server, MQTT_Port)) {
+    DEBUG_PRINT("connection failed to:");
+    DEBUG_PRINTLN(MQTT_Server);
+    return;
+  }
+
+    MQTTclient.setClient(client);
+    MQTTclient.setServer(MQTT_Server, MQTT_Port);
+    
+    sendDataToMQTT(MQTT_CF1PM01Value_topic, CF1PM01Value);
+    sendDataToMQTT(MQTT_CF1PM25Value_topic, CF1PM25Value);
+    sendDataToMQTT(MQTT_CF1PM10Value_topic, CF1PM10Value);
+    sendDataToMQTT(MQTT_atmPM01Value_topic, atmPM01Value);
+    sendDataToMQTT(MQTT_atmPM25Value_topic, atmPM25Value);
+    sendDataToMQTT(MQTT_atmPM10Value_topic, atmPM10Value);
+    sendDataToMQTT(MQTT_atmPM01Value_topic, CF1PM01Value);
+    if (!isnan(temperature)) {
+          sendDataToMQTT(MQTT_temperature_topic, temperature);
+    }
+    if (!isnan(humidity)) {
+          sendDataToMQTT(MQTT_humidity_topic, humidity);
+    }
+    sendDataToMQTT(MQTT_Partcount0_3_topic, Partcount0_3);
+    sendDataToMQTT(MQTT_Partcount0_5_topic, Partcount0_5);
+    sendDataToMQTT(MQTT_Partcount1_0_topic, Partcount1_0);
+    sendDataToMQTT(MQTT_Partcount2_5_topic, Partcount2_5);
+    sendDataToMQTT(MQTT_Partcount5_0_topic, Partcount5_0);
+    sendDataToMQTT(MQTT_Partcount10_topic, Partcount10);
+    sendDataToMQTT(MQTT_airQualityIndex_topic, airQualityIndex);
+}
+
+/*void MQTTcallback(char* topic, byte* payload, unsigned int length) {
+  // handle message arrived
+}*/
+
+void sendDataToMQTT(char* topic, int message) {
+  DEBUG_PRINTLN("sendDataToMQTT start");
+  char mess[16];
+  dtostrf(message, 16, 0, mess);
+  if (MQTTclient.connect(MQTT_ClientName)) {
+    DEBUG_PRINTLN("Connect ok");
+
+    if (MQTTclient.publish(topic, mess,true)) {
+      DEBUG_PRINTLN("Publish ok");
+    }
+    else {
+      DEBUG_PRINTLN("Publish failed");
+    }
+  }
+  else {
+    DEBUG_PRINTLN("Connect failed");
+  }
+
 }
 #endif
 
@@ -491,8 +539,8 @@ void loop() {
         sendPMDataToCloud();
         sendRawDataToCloud();
 #endif
-#ifdef USE_THINGSPEAK
-    //Placeholder for MQTT call
+#ifdef USE_MQTT
+        sendDataToMQTT();
 #endif     
 
         DEBUG_PRINTLN("Waiting for next loop");
