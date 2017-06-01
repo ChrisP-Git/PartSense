@@ -20,6 +20,7 @@ Enclosure particule sensor to monitor particule and dust level during a print.
  * APM 1.0
 
 MQTT implementation require PubSubClient library for arduino
+
 Domoticz integration require a local Domoticz instance. Please refer to https://www.domoticz.com/
 
 3d-printed case and multiple pictures are available on: 
