@@ -40,8 +40,8 @@ const int PINPMSGO = D0; // what pin we’re connected to activate measurement
 
 #define MSG_LENGTH 31   //0x42 + 31 bytes equal to PMS5003 serial message packet lenght
 #define HTTP_TIMEOUT 20000 //maximum http response wait period, sensor disconects if no response
-#define MIN_WARM_TIME 3500 //0 //warming-up period requred for sensor to enable fan and prepare air chamber
-#define SLEEP_TIME 30000 // time between each loop
+#define MIN_WARM_TIME 35000 //warming-up period requred for sensor to enable fan and prepare air chamber
+#define SLEEP_TIME 25000 // time between each loop (Total loop time ~= 1 minute)
 unsigned char buf[MSG_LENGTH];
 
 int atmPM01Value = 0;  //define PM1.0 value of the air detector module
@@ -50,12 +50,12 @@ int atmPM10Value = 0;  //define pm10 value of the air detector module
 int CF1PM01Value = 0;  //define PM1.0 value of the air detector module
 int CF1PM25Value = 0;  //define pm2.5 value of the air detector module
 int CF1PM10Value = 0;  //define pm10 value of the air detector module
-int Partcount0_3 = 0;
-int Partcount0_5 = 0;
-int Partcount1_0 = 0;
-int Partcount2_5 = 0;
-int Partcount5_0 = 0;
-int Partcount10 = 0;
+int Partcount0_3 = 0;  // Count of particules greater than 0.3 µm
+int Partcount0_5 = 0;  // Count of particules greater than 0.5 µm
+int Partcount1_0 = 0;  // Count of particules greater than 1.0 µm
+int Partcount2_5 = 0;  // Count of particules greater than 2.5 µm
+int Partcount5_0 = 0;  // Count of particules greater than 5 µm
+int Partcount10 = 0;   // Count of particules greater than 10 µm
 
 int airQualityIndex = 0;
 
@@ -224,59 +224,135 @@ void sendDataToCloud(String apikey, String strfield) {
 
 #ifdef USE_MQTT
 
-void sendDataToMQTT() {
-  DEBUG_PRINTLN("sendDataToMQTT start");
+void sendAllDataToMQTT() {
+  DEBUG_PRINTLN("sendAllDataToMQTT start");
     // Use WiFiClient class to create TCP connections
   //setupWIFI();
     WiFiClient client;
-  if (!client.connect(MQTT_Server, MQTT_Port)) {
-    DEBUG_PRINT("connection failed to:");
-    DEBUG_PRINTLN(MQTT_Server);
-    return;
-  }
-
+    if (!client.connect(MQTT_Server, MQTT_Port)) {
+      DEBUG_PRINT("connection failed to:");
+      DEBUG_PRINTLN(MQTT_Server);
+      return;
+    }
     MQTTclient.setClient(client);
     MQTTclient.setServer(MQTT_Server, MQTT_Port);
+
+  #ifdef USE_MQTT_WITH_DOMOTICZ
+    sendDataToMQTT("workaround/1","foo"); // UGLY WORKAROUND, TODO: find why first data is not sent
     
-    sendDataToMQTT(MQTT_CF1PM01Value_topic, CF1PM01Value);
-    sendDataToMQTT(MQTT_CF1PM25Value_topic, CF1PM25Value);
-    sendDataToMQTT(MQTT_CF1PM10Value_topic, CF1PM10Value);
-    sendDataToMQTT(MQTT_atmPM01Value_topic, atmPM01Value);
-    sendDataToMQTT(MQTT_atmPM25Value_topic, atmPM25Value);
-    sendDataToMQTT(MQTT_atmPM10Value_topic, atmPM10Value);
-    sendDataToMQTT(MQTT_atmPM01Value_topic, CF1PM01Value);
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_airQualityIndex_idx,int_to_chr(airQualityIndex)));
+    if ((!isnan(temperature)) and (!isnan(humidity))) {
+      sendDataToMQTT(MQTT_topic, makeHumTempDomoticzStyleValue(MQTT_temperature_humidity_idx));
+    }
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_CF1PM01Value_idx,int_to_chr(CF1PM01Value)));
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_CF1PM25Value_idx,int_to_chr(CF1PM25Value)));
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_CF1PM10Value_idx,int_to_chr(CF1PM10Value)));
+
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount0_3_idx,int_to_chr(Partcount0_3)));
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount0_5_idx,int_to_chr(Partcount0_5)));
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount1_0_idx,int_to_chr(Partcount1_0)));
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount2_5_idx,int_to_chr(Partcount2_5)));
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount5_0_idx,int_to_chr(Partcount5_0)));
+    sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount10_idx,int_to_chr(Partcount10)));
+
+  #else
+    sendDataToMQTT(MQTT_CF1PM01Value_topic, int_to_chr(CF1PM01Value));
+    sendDataToMQTT(MQTT_CF1PM25Value_topic, int_to_chr(CF1PM25Value));
+    sendDataToMQTT(MQTT_CF1PM10Value_topic, int_to_chr(CF1PM10Value));
+    sendDataToMQTT(MQTT_atmPM01Value_topic, int_to_chr(atmPM01Value));
+    sendDataToMQTT(MQTT_atmPM25Value_topic, int_to_chr(atmPM25Value));
+    sendDataToMQTT(MQTT_atmPM10Value_topic, int_to_chr(atmPM10Value));
+    sendDataToMQTT(MQTT_atmPM01Value_topic, int_to_chr(CF1PM01Value));
     if (!isnan(temperature)) {
-          sendDataToMQTT(MQTT_temperature_topic, temperature);
+          sendDataToMQTT(MQTT_temperature_topic, float_to_chr(temperature));
     }
     if (!isnan(humidity)) {
-          sendDataToMQTT(MQTT_humidity_topic, humidity);
+          sendDataToMQTT(MQTT_humidity_topic, float_to_chr(humidity));
     }
-    sendDataToMQTT(MQTT_Partcount0_3_topic, Partcount0_3);
-    sendDataToMQTT(MQTT_Partcount0_5_topic, Partcount0_5);
-    sendDataToMQTT(MQTT_Partcount1_0_topic, Partcount1_0);
-    sendDataToMQTT(MQTT_Partcount2_5_topic, Partcount2_5);
-    sendDataToMQTT(MQTT_Partcount5_0_topic, Partcount5_0);
-    sendDataToMQTT(MQTT_Partcount10_topic, Partcount10);
-    sendDataToMQTT(MQTT_airQualityIndex_topic, airQualityIndex);
+    sendDataToMQTT(MQTT_Partcount0_3_topic, int_to_chr(Partcount0_3));
+    sendDataToMQTT(MQTT_Partcount0_5_topic, int_to_chr(Partcount0_5));
+    sendDataToMQTT(MQTT_Partcount1_0_topic, int_to_chr(Partcount1_0));
+    sendDataToMQTT(MQTT_Partcount2_5_topic, int_to_chr(Partcount2_5));
+    sendDataToMQTT(MQTT_Partcount5_0_topic, int_to_chr(Partcount5_0));
+    sendDataToMQTT(MQTT_Partcount10_topic, int_to_chr(Partcount10));
+    sendDataToMQTT(MQTT_airQualityIndex_topic, int_to_chr(airQualityIndex));
+  #endif
 }
 
 /*void MQTTcallback(char* topic, byte* payload, unsigned int length) {
   // handle message arrived
 }*/
 
-void sendDataToMQTT(char* topic, int message) {
+String float_to_chr(float value) {
+  char buffer[35]; 
+  sprintf(buffer, "%d.%01d",(int)value, (int)(value*10)%10);
+  return buffer;
+}
+
+String int_to_chr(int value) {
+  char buffer[35]; 
+  sprintf(buffer, "%d",value);
+  return buffer;
+}
+
+#ifdef USE_MQTT_WITH_DOMOTICZ
+
+String makeHumTempDomoticzStyleValue(int idx) {
+  String buffer;
+  buffer = "{ \"idx\" : ";
+  buffer += idx;
+  buffer += ", \"nvalue\" : 0, \"svalue\" : \"";
+  buffer += float_to_chr(temperature);
+  buffer += ";";
+  buffer += float_to_chr(humidity);
+  buffer += ";1\" }";
+  return buffer;
+}
+
+String makeGenericDomoticzStyleValue(int idx,String data) {
+  String buffer;
+  buffer = "{ \"idx\" : ";
+  buffer += idx;
+  buffer += ", \"nvalue\" : 0, \"svalue\" : \"";
+  buffer += data;
+  buffer += "\" }";
+  return buffer;
+}
+#endif
+
+
+void sendDataToMQTT(char* topic, String value) {
   DEBUG_PRINTLN("sendDataToMQTT start");
-  char mess[16];
-  dtostrf(message, 16, 0, mess);
-  if (MQTTclient.connect(MQTT_ClientName)) {
+  char valuechar[value.length()+1];
+  value.toCharArray(valuechar, value.length()+1);
+  MQTTclient.disconnect();
+  boolean MQTT_connected;
+  
+  #ifdef MQTT_USE_AUTH
+    MQTT_connected = MQTTclient.connect(MQTT_ClientName,MQTT_Username,MQTT_Password);
+  #else
+    MQTT_connected = MQTTclient.connect(MQTT_ClientName);
+  #endif
+
+
+  if (MQTT_connected) {
     DEBUG_PRINTLN("Connect ok");
 
-    if (MQTTclient.publish(topic, mess,true)) {
-      DEBUG_PRINTLN("Publish ok");
+    if (MQTTclient.publish(topic,valuechar,true)) {
+      DEBUG_PRINT("Publish ");
+      DEBUG_PRINT(topic);
+      DEBUG_PRINT(", ");
+      DEBUG_PRINT(valuechar);
+      DEBUG_PRINTLN(" : ok");
     }
     else {
-      DEBUG_PRINTLN("Publish failed");
+      DEBUG_PRINT("Publish ");
+      DEBUG_PRINT(topic);
+      DEBUG_PRINT(", ");
+      DEBUG_PRINT(valuechar);
+      DEBUG_PRINTLN(" failed !!!");
     }
+    MQTTclient.disconnect();
   }
   else {
     DEBUG_PRINTLN("Connect failed");
@@ -465,7 +541,9 @@ void setup() {
 void loop() {
   DEBUG_PRINTLN("loop start");
 
+  DEBUG_PRINTLN("Switching On PMS");
   powerOnSensor();
+  
   #ifdef USE_WIFI
     setupWIFI();
   #endif
@@ -481,9 +559,8 @@ void loop() {
     DEBUG_PRINTLN("DHTXX not ready, skipped");
   }
 
-
-  for (int i = 0; i < 30; i++) {
   Serial.swap(); //Use UART2 for PMS5003 communication (Allow sketch upload without having to unplug GPIO3 !!!!)
+//  for (int i = 0; i < 30; i++) {
     if (Serial.find(0x42)) {  //start to read when detect 0x42
       Serial.readBytes(buf, MSG_LENGTH);
       Serial.swap();
@@ -513,8 +590,6 @@ void loop() {
         */
         airQualityIndex = calculateAQI25(atmPM25Value);
 
-
-#ifdef DEBUG //debug info only for serial connection debugging
         DEBUG_PRINTLN("Temperature: " + String(temperature));
         DEBUG_PRINTLN("Humidity: " + String(humidity));
         DEBUG_PRINTLN("Atm PM 1.0: " + String(atmPM01Value));
@@ -531,7 +606,6 @@ void loop() {
         DEBUG_PRINTLN("Count 5.0 : " + String(Partcount5_0));
         DEBUG_PRINTLN("Count  10 : " + String(Partcount10));
         DEBUG_PRINTLN("--------------");
-#endif
 
         ShowDataonLCD();
 
@@ -540,20 +614,25 @@ void loop() {
         sendRawDataToCloud();
 #endif
 #ifdef USE_MQTT
-        sendDataToMQTT();
+        sendAllDataToMQTT();
 #endif     
 
         DEBUG_PRINTLN("Waiting for next loop");
         delay(SLEEP_TIME); // Wait more than 15 seconds to send additionnal data
 
-    } else {
+    } 
+    else
+    {
         DEBUG_PRINTLN("message validation error");
-      }
-    } else {
+    }
+  } 
+  else
+  {
     Serial.swap();
     DEBUG_PRINTLN("sensor msg start not found");
     }
-  }
-
+//  }
+  //Serial.swap();
+  DEBUG_PRINTLN("Switching Off PMS");
   powerOffSensor();
 }
