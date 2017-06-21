@@ -17,7 +17,7 @@ PubSubClient MQTTclient;
 #define DEBUG_PRINT(x)
 #endif
 
-// I2C LCd
+// I2C LCd. Please note your I2C address may be different, check your LCD I2C device and adjust address if needed.
 LiquidCrystal_I2C lcd(0x27, 16, 2);
 
 //Wifi
