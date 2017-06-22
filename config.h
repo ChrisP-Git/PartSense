@@ -9,16 +9,40 @@ const char* Wifi_SSID = "SSID";
 const char* Wifi_PASSWORD = "PASSWORD";
 
 //Thingspeak
-//#define USE_THINGSPEAK //comment to remove thinkspeak data feeding
+#define USE_THINGSPEAK //comment to remove thingspeak data feeding
 #ifdef USE_THINGSPEAK
   //////////////////////////////////////////////////////
   ///////// if you want to push data on thingspeak /////
   ///////// Replace API keys by your own values ////////
   //////////////////////////////////////////////////////
-  const String ThingSpeak_PM_APIKey = "XXXXXXXXXXXXXXXX";
-  const String ThingSpeak_Raw_APIKey = "XXXXXXXXXXXXXXXX";
   const char* ThingSpeak_API_Server = "api.thingspeak.com";
+  /*  Create or use a ThingSpeak account. Data are sent only every minute, so the free plan must be enough.
+   *  Create two channels with the following fields collection
+   *  The names of the field are not important, but the order of the fields should be defined as below
+
+  // PM Channel:
+  // Field1= CF1 PM 1.0 (μg/m3)
+  // Field2= CF1 PM 2.5 (μg/m3)
+  // Field3= CF1 PM 10 (μg/m3)
+  // Field4= Atm PM 1.0 (μg/m3)
+  // Field5= Atm PM 2.5 (μg/m3)
+  // Field6= Atm PM 10 (μg/m3)
+  // Field7= Humidity (%)
+  // Field8= Temperature (°C or F)*/
+  const String ThingSpeak_PM_APIKey = "APIKEY1";
+
+  /*
+  // Raw Dust Channel:
+  // Field1= Particule count 0.3 µm per 0.1 L
+  // Field2= Particule count 0.5 µm per 0.1 L
+  // Field3= Particule count 1.0 µm per 0.1 L
+  // Field4= Particule count 2.5 µm per 0.1 L
+  // Field5= Particule count 5.0 µm per 0.1 L
+  // Field6= Particule count 10 µm per 0.1 L
+  // Field7= US AQI */
+  const String ThingSpeak_Raw_APIKey = "APIKEY2";
 #endif
+
 
 //MQTT
 #define USE_MQTT //comment to remove MQTT data feeding
