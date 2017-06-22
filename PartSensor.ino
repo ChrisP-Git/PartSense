@@ -45,18 +45,18 @@ const int PINPMSGO = D0; // what pin we’re connected to activate measurement
 unsigned char buf[MSG_LENGTH];
 unsigned long previousMillis;
 
-int atmPM01Value = 0;  //define PM1.0 value of the air detector module
-int atmPM25Value = 0;  //define pm2.5 value of the air detector module
-int atmPM10Value = 0;  //define pm10 value of the air detector module
-int CF1PM01Value = 0;  //define PM1.0 value of the air detector module
-int CF1PM25Value = 0;  //define pm2.5 value of the air detector module
-int CF1PM10Value = 0;  //define pm10 value of the air detector module
-int Partcount0_3 = 0;  // Count of particules greater than 0.3 µm
-int Partcount0_5 = 0;  // Count of particules greater than 0.5 µm
-int Partcount1_0 = 0;  // Count of particules greater than 1.0 µm
-int Partcount2_5 = 0;  // Count of particules greater than 2.5 µm
-int Partcount5_0 = 0;  // Count of particules greater than 5 µm
-int Partcount10 = 0;   // Count of particules greater than 10 µm
+int atmPM01Value = 0;  // PM 1.0 value of the air detector module μg/m3
+int atmPM25Value = 0;  // PM 2.5 value of the air detector module μg/m3
+int atmPM10Value = 0;  // PM 10 value of the air detector module μg/m3
+int CF1PM01Value = 0;  // PM 1.0 value of the air detector module μg/m3
+int CF1PM25Value = 0;  // PM 2.5 value of the air detector module μg/m3
+int CF1PM10Value = 0;  // PM 10 value of the air detector module μg/m3
+int Partcount0_3 = 0;  // Number of particles with diameter beyond 0.3 um in 0.1 L of air
+int Partcount0_5 = 0;  // Number of particles with diameter beyond 0.5 um in 0.1 L of air
+int Partcount1_0 = 0;  // Number of particles with diameter beyond 1.0 um in 0.1 L of air
+int Partcount2_5 = 0;  // Number of particles with diameter beyond 2.5 um in 0.1 L of air
+int Partcount5_0 = 0;  // Number of particles with diameter beyond 5.0 um in 0.1 L of air
+int Partcount10 = 0;   // Number of particles with diameter beyond 10 um in 0.1 L of air
 
 int airQualityIndex = 0;
 
@@ -104,34 +104,13 @@ void setupWIFI() {
 #endif
 }
 
-/* ThingSpeak Channel definition
-
-  // PM Channel:
-  // Field1= CF1 PM1
-  // Field2= CF1 PM2.5
-  // Field3= CF1 PM10
-  // Field4= Atm PM1
-  // Field5= Atm PM2.5
-  // Field6= Atm PM10
-  // Field7= Humidity
-  // Field8= Temperature
-
-  // Raw Dust Channel:
-  // Field1= Particule count 0.3 µm
-  // Field2= Particule count 0.5 µm
-  // Field3= Particule count 1.0 µm
-  // Field4= Particule count 2.5 µm
-  // Field5= Particule count 5.0 µm
-  // Field6= Particule count 10 µm
-  // Field7= AQI
-*/
-
 #ifdef USE_THINGSPEAK
 
 void sendPMDataToCloud() {
   DEBUG_PRINTLN("sendPMDataToCloud start");
 
   // Enclosure-PM Channel
+  // Check config.h file for detail about channel and field to create on thingspeak
   String postStr = ThingSpeak_PM_APIKey;
   postStr += "&field1=";
   postStr += String(CF1PM01Value);
@@ -162,6 +141,7 @@ void sendRawDataToCloud() {
   DEBUG_PRINTLN("sendRawDataToCloud start");
 
   // Enclosure-RawDust Channel
+  // Check config.h file for detail about channel and field to create on thingspeak
   String postStr = ThingSpeak_Raw_APIKey;
   postStr += "&field1=";
   postStr += String(Partcount0_3);
@@ -428,35 +408,36 @@ int decodeCount10(unsigned char *thebuf) {
 }
 
 
-// AQI formula: https://en.wikipedia.org/wiki/Air_Quality_Index#United_States
+// US AQI formula: https://en.wikipedia.org/wiki/Air_Quality_Index#United_States
 int toAQI(int I_high, int I_low, int C_high, int C_low, int C) {
   return (I_high - I_low) * (C - C_low) / (C_high - C_low) + I_low;
 }
 
 //thanks to https://gist.github.com/nfjinjing/8d63012c18feea3ed04e
 // Based on https://en.wikipedia.org/wiki/Air_Quality_Index#United_States
-int calculateAQI25(float density) {
+// Confirmed on http://aqicn.org/faq/2013-09-09/revised-pm25-aqi-breakpoints/fr/
+int calculate_US_AQI25(float density) {
 
   int d10 = (int)(density * 10);
   if (d10 <= 0) {
     return 0;
-  } else if (d10 <= 120) {
+  } else if (d10 <= 120) { // Good
     return toAQI(50, 0, 120, 0, d10);
-  } else if (d10 <= 354) {
+  } else if (d10 <= 354) { // Moderate
     return toAQI(100, 51, 354, 121, d10);
-  } else if (d10 <= 554) {
+  } else if (d10 <= 554) { // Unhealthy for Sensitive Groups
     return toAQI(150, 101, 554, 355, d10);
-  } else if (d10 <= 1504) {
+  } else if (d10 <= 1504) { // Unhealthy
     return toAQI(200, 151, 1504, 555, d10);
-  } else if (d10 <= 2504) {
+  } else if (d10 <= 2504) { // Very Unhealthy
     return toAQI(300, 201, 2504, 1505, d10);
-  } else if (d10 <= 3504) {
+  } else if (d10 <= 3504) { // Hazardous
     return toAQI(400, 301, 3504, 2505, d10);
-  } else if (d10 <= 5004) {
+  } else if (d10 <= 5004) { // Hazardous
     return toAQI(500, 401, 5004, 3505, d10);
-  } else if (d10 <= 10000) {
+  } else if (d10 <= 10000) { // Hazardous
     return toAQI(1000, 501, 10000, 5005, d10);
-  } else {
+  } else { // Are you still alive ?
     return 1001;
   }
 }
@@ -570,20 +551,20 @@ void loop() {
     Serial.swap(); // Switch back UART for debug over USB
 
     if (buf[0] == 0x4d && validateMsg()) {
-      CF1PM01Value = decodeCF1PM01(buf); //count PM1.0 CF1 value of the air detector module
-      CF1PM25Value = decodeCF1PM25(buf);//count pm2.5 CF1 value of the air detector module
-      CF1PM10Value = decodeCF1PM10(buf); //count pm10 CF1 value of the air detector module
+      CF1PM01Value = decodeCF1PM01(buf); //PM1.0 CF1 value of the air detector module μg/m3
+      CF1PM25Value = decodeCF1PM25(buf); //PM2.5 CF1 value of the air detector module μg/m3
+      CF1PM10Value = decodeCF1PM10(buf); //PM10 CF1 value of the air detector module μg/m3
 
-      atmPM01Value = decodeAtmosphericPM01(buf); //count PM1.0 atmospheric value of the air detector module
-      atmPM25Value = decodeAtmosphericPM25(buf);//count pm2.5 atmospheric value of the air detector module
-      atmPM10Value = decodeAtmosphericPM10(buf); //count pm10 atmospheric value of the air detector module
+      atmPM01Value = decodeAtmosphericPM01(buf); //PM1.0 atmospheric value of the air detector module μg/m3
+      atmPM25Value = decodeAtmosphericPM25(buf); //PM2.5 atmospheric value of the air detector module μg/m3
+      atmPM10Value = decodeAtmosphericPM10(buf); //PM10 atmospheric value of the air detector module μg/m3
 
-      Partcount0_3 = decodeCount0_3(buf); //count 0.3 µm particulates count
-      Partcount0_5 = decodeCount0_5(buf); //count 0.5 µm particulates count
-      Partcount1_0 = decodeCount1_0(buf); //count 1.0 µm particulates count
-      Partcount2_5 = decodeCount2_5(buf); //count 2.5 µm particulates count
-      Partcount5_0 = decodeCount5_0(buf); //count 5.0 µm particulates count
-      Partcount10 = decodeCount10(buf); //count 10 µm particulates count
+      Partcount0_3 = decodeCount0_3(buf); //count 0.3 µm particulates per 0.1 l
+      Partcount0_5 = decodeCount0_5(buf); //count 0.5 µm particulates per 0.1 l
+      Partcount1_0 = decodeCount1_0(buf); //count 1.0 µm particulates per 0.1 l
+      Partcount2_5 = decodeCount2_5(buf); //count 2.5 µm particulates per 0.1 l
+      Partcount5_0 = decodeCount5_0(buf); //count 5.0 µm particulates per 0.1 l
+      Partcount10 = decodeCount10(buf);   //count 10 µm particulates per 0.1 l
 
       /*if (atmPM01Value == atmPM25Value || atmPM25Value == atmPM10Value) {
         //it is very rarely happened that different particles have same value, better to read again
@@ -592,7 +573,7 @@ void loop() {
         continue;
         }
       */
-      airQualityIndex = calculateAQI25(atmPM25Value);
+      airQualityIndex = calculate_US_AQI25(atmPM25Value);
 
       DEBUG_PRINTLN("Temperature: " + String(temperature));
       DEBUG_PRINTLN("Humidity: " + String(humidity));
@@ -619,8 +600,8 @@ void loop() {
       DEBUG_PRINT("Remaining ms till next send:");
       DEBUG_PRINTLN(remainMillis);
       if (remainMillis < MIN_TIME_SENDDATA) {
-        //			DEBUG_PRINT("Remaining ms till next send:");
-        //			DEBUG_PRINTLN(remainMillis);
+        //      DEBUG_PRINT("Remaining ms till next send:");
+        //      DEBUG_PRINTLN(remainMillis);
       }
       else {
         previousMillis = currentMillis;
