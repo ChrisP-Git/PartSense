@@ -60,6 +60,17 @@ int Partcount10 = 0;   // Number of particles with diameter beyond 10 um in 0.1 
 
 int airQualityIndex = 0;
 
+void resetWIFI() {
+#ifdef USE_WIFI
+  /* Usefull when switching from one Wifi network to anotherone */
+  DEBUG_PRINTLN("Start Wifi Reset");
+  WiFi.disconnect();
+  WiFi.persistent(false);
+  WiFi.mode(WIFI_OFF);
+  WiFi.mode(WIFI_STA);
+  DEBUG_PRINTLN("WiFi reseted");
+#endif
+}
 
 void setupWIFI() {
 #ifdef USE_WIFI
@@ -68,6 +79,8 @@ void setupWIFI() {
      network-issues with your other WiFi-devices on your WiFi-network. */
   if (WiFi.status() != WL_CONNECTED) {
     WiFi.mode(WIFI_STA);
+    DEBUG_PRINTLN("Connect to SSID: ");
+    DEBUG_PRINTLN(Wifi_SSID);
     WiFi.begin(Wifi_SSID, Wifi_PASSWORD);
   }
   else
@@ -242,28 +255,29 @@ void sendAllDataToMQTT() {
   sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount2_5_idx, int_to_chr(Partcount2_5)));
   sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount5_0_idx, int_to_chr(Partcount5_0)));
   sendDataToMQTT(MQTT_topic, makeGenericDomoticzStyleValue(MQTT_Partcount10_idx, int_to_chr(Partcount10)));
+#endif
 
-#else
-  sendDataToMQTT(MQTT_CF1PM01Value_topic, int_to_chr(CF1PM01Value));
-  sendDataToMQTT(MQTT_CF1PM25Value_topic, int_to_chr(CF1PM25Value));
-  sendDataToMQTT(MQTT_CF1PM10Value_topic, int_to_chr(CF1PM10Value));
-  sendDataToMQTT(MQTT_atmPM01Value_topic, int_to_chr(atmPM01Value));
-  sendDataToMQTT(MQTT_atmPM25Value_topic, int_to_chr(atmPM25Value));
-  sendDataToMQTT(MQTT_atmPM10Value_topic, int_to_chr(atmPM10Value));
-  sendDataToMQTT(MQTT_atmPM01Value_topic, int_to_chr(CF1PM01Value));
+#ifdef USE_MQTT_WITH_FLATTOPIC
   if (!isnan(temperature)) {
-    sendDataToMQTT(MQTT_temperature_topic, float_to_chr(temperature));
+    sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_temperature_Channel, float_to_chr(temperature)));
   }
   if (!isnan(humidity)) {
-    sendDataToMQTT(MQTT_humidity_topic, float_to_chr(humidity));
+    sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_humidity_Channel, float_to_chr(humidity)));
   }
-  sendDataToMQTT(MQTT_Partcount0_3_topic, int_to_chr(Partcount0_3));
-  sendDataToMQTT(MQTT_Partcount0_5_topic, int_to_chr(Partcount0_5));
-  sendDataToMQTT(MQTT_Partcount1_0_topic, int_to_chr(Partcount1_0));
-  sendDataToMQTT(MQTT_Partcount2_5_topic, int_to_chr(Partcount2_5));
-  sendDataToMQTT(MQTT_Partcount5_0_topic, int_to_chr(Partcount5_0));
-  sendDataToMQTT(MQTT_Partcount10_topic, int_to_chr(Partcount10));
-  sendDataToMQTT(MQTT_airQualityIndex_topic, int_to_chr(airQualityIndex));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_CF1PM01Value_Channel, int_to_chr(CF1PM01Value)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_CF1PM25Value_Channel, int_to_chr(CF1PM25Value)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_CF1PM10Value_Channel, int_to_chr(CF1PM10Value)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_atmPM01Value_Channel, int_to_chr(atmPM01Value)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_atmPM25Value_Channel, int_to_chr(atmPM25Value)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_atmPM10Value_Channel, int_to_chr(atmPM10Value)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_atmPM01Value_Channel, int_to_chr(CF1PM01Value)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_Partcount0_3_Channel, int_to_chr(Partcount0_3)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_Partcount0_5_Channel, int_to_chr(Partcount0_5)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_Partcount1_0_Channel, int_to_chr(Partcount1_0)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_Partcount2_5_Channel, int_to_chr(Partcount2_5)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_Partcount5_0_Channel, int_to_chr(Partcount5_0)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_Partcount10_Channel, int_to_chr(Partcount10)));
+  sendDataToMQTT(MQTT_flattopic, makeGenericStyleValue(MQTT_airQualityIndex_Channel, int_to_chr(airQualityIndex)));
 #endif
 }
 
@@ -308,6 +322,15 @@ String makeGenericDomoticzStyleValue(int idx, String data) {
 }
 #endif
 
+String makeGenericStyleValue(String Channel, String data) {
+  String buffer;
+  buffer = "{ \"";
+  buffer += Channel;
+  buffer += "\" : \"";
+  buffer += data;
+  buffer += "\" }";
+  return buffer;
+}
 
 void sendDataToMQTT(char* topic, String value) {
   DEBUG_PRINTLN("sendDataToMQTT start");
@@ -513,6 +536,10 @@ void setup() {
   lcd.backlight();
   lcd.print("Initialize ...");
   DEBUG_PRINTLN("LCD Initialized");
+
+#ifdef USE_WIFI
+  resetWIFI();
+#endif
 
   delay(10);
   dht.begin();
