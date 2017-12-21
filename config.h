@@ -43,17 +43,18 @@ const char* Wifi_PASSWORD = "PASSWORD";
   const String ThingSpeak_Raw_APIKey = "APIKEY2";
 #endif
 
-
 //MQTT
 #define USE_MQTT //comment to remove MQTT data feeding
-#define USE_MQTT_WITH_DOMOTICZ //comment to remove MQTT data format required for Domoticz integration for graphing
+#define USE_MQTT_WITH_DOMOTICZ  //comment to remove MQTT data format required for Domoticz integration for graphing
+#define USE_MQTT_WITH_FLATTOPIC //comment to remove MQTT data format required for generic data on flat topic
+//                                it's possible to send MQTT data to both Domoticz structure and flat structure
 #ifdef USE_MQTT
   /*
   * if you want to push data on a MQTT broker
   * Replace settings by your own values
   * Best template to install Mosquitto on Debian: https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-debian-8
   */
-  #define MQTT_Server "MQTT server adress"
+  #define MQTT_Server "10.0.0.10"
   // #define MQTT_USE_AUTH // comment to use unauthenticated MQTT connection (not yet implemented)
   #define MQTT_Username "toto"
   #define MQTT_Password "toto"
@@ -80,26 +81,24 @@ const char* Wifi_PASSWORD = "PASSWORD";
     #define MQTT_Partcount5_0_idx 120 // Create a Custom virtual Sensor on Domoticz and get it's idx from Domoticz device list
     #define MQTT_Partcount10_idx 121 // Create a Custom virtual Sensor on Domoticz and get it's idx from Domoticz device list
     #define MQTT_airQualityIndex_idx 112 // Create a Custom virtual Sensor on Domoticz and get it's idx from Domoticz device list
-  #else
-    #define MQTT_temperature_topic "3DPrint/Enclosure1/temperature"
-    #define MQTT_humidity_topic "3DPrint/Enclosure1/humidity"
-    #define MQTT_atmPM01Value_topic "3DPrint/Enclosure1/atmPM01Value"
-    #define MQTT_atmPM25Value_topic "3DPrint/Enclosure1/atmPM25Value"
-    #define MQTT_atmPM10Value_topic "3DPrint/Enclosure1/atmPM10Value"
-    #define MQTT_CF1PM01Value_topic "3DPrint/Enclosure1/CF1PM01Value"
-    #define MQTT_CF1PM25Value_topic "3DPrint/Enclosure1/CF1PM25Value"
-    #define MQTT_CF1PM10Value_topic "3DPrint/Enclosure1/CF1PM10Value"
-    #define MQTT_Partcount0_3_topic "3DPrint/Enclosure1/Partcount0_3"
-    #define MQTT_Partcount0_5_topic "3DPrint/Enclosure1/Partcount0_5"
-    #define MQTT_Partcount1_0_topic "3DPrint/Enclosure1/Partcount1_0"
-    #define MQTT_Partcount2_5_topic "3DPrint/Enclosure1/Partcount2_5"
-    #define MQTT_Partcount5_0_topic "3DPrint/Enclosure1/Partcount5_0"
-    #define MQTT_Partcount10_topic "3DPrint/Enclosure1/Partcount10"
-    #define MQTT_airQualityIndex_topic "3DPrint/Enclosure1/airQualityIndex"
+  #endif
+
+  #ifdef USE_MQTT_WITH_FLATTOPIC
+    #define MQTT_flattopic "3DPrint/Enclosure1"
+    #define MQTT_temperature_Channel "temperature"
+    #define MQTT_humidity_Channel "humidity"
+    #define MQTT_atmPM01Value_Channel "atmPM01Value"
+    #define MQTT_atmPM25Value_Channel "atmPM25Value"
+    #define MQTT_atmPM10Value_Channel "atmPM10Value"
+    #define MQTT_CF1PM01Value_Channel "CF1PM01Value"
+    #define MQTT_CF1PM25Value_Channel "CF1PM25Value"
+    #define MQTT_CF1PM10Value_Channel "CF1PM10Value"
+    #define MQTT_Partcount0_3_Channel "Partcount0_3"
+    #define MQTT_Partcount0_5_Channel "Partcount0_5"
+    #define MQTT_Partcount1_0_Channel "Partcount1_0"
+    #define MQTT_Partcount2_5_Channel "Partcount2_5"
+    #define MQTT_Partcount5_0_Channel "Partcount5_0"
+    #define MQTT_Partcount10_Channel "Partcount10"
+    #define MQTT_airQualityIndex_Channel "airQualityIndex"
   #endif
 #endif
-
-
-
-
-
