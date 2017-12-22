@@ -54,7 +54,7 @@ const char* Wifi_PASSWORD = "PASSWORD";
   * Replace settings by your own values
   * Best template to install Mosquitto on Debian: https://www.digitalocean.com/community/tutorials/how-to-install-and-secure-the-mosquitto-mqtt-messaging-broker-on-debian-8
   */
-  #define MQTT_Server "10.0.0.10"
+  #define MQTT_Server "MQTT-IP"
   // #define MQTT_USE_AUTH // comment to use unauthenticated MQTT connection (not yet implemented)
   #define MQTT_Username "toto"
   #define MQTT_Password "toto"
