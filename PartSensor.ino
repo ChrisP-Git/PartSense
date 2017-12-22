@@ -562,11 +562,11 @@ void loop() {
   DEBUG_PRINTLN("loop start");
 
   //Get Temperature & Humidity from DHT
-  humidity = dht.readHumidity();
+  humidity = dht.readHumidity() +adjustHumidity;
 #ifdef USE_CELCIUS
-  temperature = dht.readTemperature();
+  temperature = dht.readTemperature() + adjustT0;
 #else
-  temperature = dht.readTemperature(true);
+  temperature = dht.readTemperature(true) + adjustT0;
 #endif
   if (isnan(humidity) || isnan(temperature)) {
     DEBUG_PRINTLN("DHTXX not ready, skipped");
