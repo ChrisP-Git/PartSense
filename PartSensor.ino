@@ -566,7 +566,7 @@ void loop() {
 #ifdef USE_CELCIUS
   temperature = dht.readTemperature() + adjustT0;
 #else
-  temperature = dht.readTemperature(true) = adjustT0;
+  temperature = dht.readTemperature(true) + adjustT0;
 #endif
   if (isnan(humidity) || isnan(temperature)) {
     DEBUG_PRINTLN("DHTXX not ready, skipped");
