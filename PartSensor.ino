@@ -492,7 +492,7 @@ void ShowDataonLCD() {
 
   if (!isnan(temperature)) {
     lcd.setCursor(0, 0);
-    float f = temperature;
+    float f = temperature + adjustT0;
 #ifdef USE_CELCIUS
     sprintf(buffer, "T:%d.%01dC ", (int)f, (int)(f * 10) % 10);
 #else
@@ -507,7 +507,7 @@ void ShowDataonLCD() {
 
   if (!isnan(humidity)) {
     lcd.setCursor(8, 0);
-    float f = humidity;
+    float f = humidity + adjustHumidity;
     sprintf(buffer, "H:%d.%01d%%", (int)f, (int)(f * 10) % 10);
     lcd.print(buffer);
   }
