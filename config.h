@@ -27,8 +27,8 @@ const char* Wifi_PASSWORD = "PASSWORD";
   // Field4= Atm PM 1.0 (μg/m3)
   // Field5= Atm PM 2.5 (μg/m3)
   // Field6= Atm PM 10 (μg/m3)
-  // Field7= Humidity (%)
-  // Field8= Temperature (°C or F)*/
+  // Field7= Temperature (°C or F)*/
+  // Field8= Humidity (%)
   const String ThingSpeak_PM_APIKey = "APIKEY1";
 
   /*
