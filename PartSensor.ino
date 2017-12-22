@@ -492,7 +492,7 @@ void ShowDataonLCD() {
 
   if (!isnan(temperature)) {
     lcd.setCursor(0, 0);
-    float f = temperature + adjustT0;
+    float f = temperature;
 #ifdef USE_CELCIUS
     sprintf(buffer, "T:%d.%01dC ", (int)f, (int)(f * 10) % 10);
 #else
@@ -507,7 +507,7 @@ void ShowDataonLCD() {
 
   if (!isnan(humidity)) {
     lcd.setCursor(8, 0);
-    float f = humidity + adjustHumidity;
+    float f = humidity;
     sprintf(buffer, "H:%d.%01d%%", (int)f, (int)(f * 10) % 10);
     lcd.print(buffer);
   }
@@ -562,11 +562,11 @@ void loop() {
   DEBUG_PRINTLN("loop start");
 
   //Get Temperature & Humidity from DHT
-  humidity = dht.readHumidity();
+  humidity = dht.readHumidity() +adjustHumidity;
 #ifdef USE_CELCIUS
-  temperature = dht.readTemperature();
+  temperature = dht.readTemperature() + adjustT0;
 #else
-  temperature = dht.readTemperature(true);
+  temperature = dht.readTemperature(true) = adjustT0;
 #endif
   if (isnan(humidity) || isnan(temperature)) {
     DEBUG_PRINTLN("DHTXX not ready, skipped");
