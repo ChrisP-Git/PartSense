@@ -8,6 +8,10 @@
 const char* Wifi_SSID = "SSID";
 const char* Wifi_PASSWORD = "PASSWORD";
 
+// Ajustement TO et humidité
+float adjustT0 = -1.9;// remplacer par la valeur de correction
+float adjustHumidity = +11.3;// remplacer par la valeur de correction
+
 //Thingspeak
 #define USE_THINGSPEAK //comment to remove thingspeak data feeding
 #ifdef USE_THINGSPEAK
