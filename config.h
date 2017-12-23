@@ -8,6 +8,10 @@
 const char* Wifi_SSID = "SSID";
 const char* Wifi_PASSWORD = "PASSWORD";
 
+// Ajustement TO et humidité
+float adjustT0 = -1.9;// remplacer par la valeur de correction
+float adjustHumidity = +11.3;// remplacer par la valeur de correction
+
 //Thingspeak
 #define USE_THINGSPEAK //comment to remove thingspeak data feeding
 #ifdef USE_THINGSPEAK
@@ -27,8 +31,8 @@ const char* Wifi_PASSWORD = "PASSWORD";
   // Field4= Atm PM 1.0 (μg/m3)
   // Field5= Atm PM 2.5 (μg/m3)
   // Field6= Atm PM 10 (μg/m3)
-  // Field7= Humidity (%)
-  // Field8= Temperature (°C or F)*/
+  // Field7= Temperature (°C or F)*/
+  // Field8= Humidity (%)
   const String ThingSpeak_PM_APIKey = "APIKEY1";
 
   /*
